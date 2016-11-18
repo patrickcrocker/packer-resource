@@ -1,12 +1,36 @@
 ---
 jobs:
-- name: build
+- name: build-latest
   public: true
   plan:
   - get: packer-resource
     trigger: true
-  - put: packer-resource-image
-    params: {build: packer-resource}
+  - get: version
+    params: { pre: rc }
+  - put: packer-resource-image-rc
+    params:
+      build: packer-resource
+      tag: version/version
+      tag_as_latest: true
+
+- name: shipit
+  serial_groups: [version]
+  plan:
+  - aggregate:
+    - get: packer-resource-image-rc
+      passed: [build-latest]
+      params: {save: true}
+    - get: version
+      passed: [build-latest]
+      params: {bump: final}
+  - aggregate:
+    - put: version
+      params: { file: version/number }
+    - put: packer-resource-image-final
+      params:
+        load: packer-resource-image-rc
+        tag: version/version
+        tag_as_latest: true
 
 resources:
 - name: packer-resource
@@ -14,10 +38,30 @@ resources:
   source:
     uri: {{git-uri}}
     branch: {{git-branch}}
+    paths:
+    - Dockerfile
+    - bin/*
 
-- name: packer-resource-image
+- name: version
+  type: semver
+  source:
+    driver: git
+    initial_version: 0.12.0-rc.0
+    uri: {{git-uri-semver}}
+    branch: version
+    file: version
+    private_key: {{git-private-key}}
+
+- name: packer-resource-image-rc
   type: docker-image
   source:
-    repository: {{docker-repository}}
+    repository: {{docker-repository-rc}}
+    username: {{docker-username}}
+    password: {{docker-password}}
+
+- name: packer-resource-image-final
+  type: docker-image
+  source:
+    repository: {{docker-repository-final}}
     username: {{docker-username}}
     password: {{docker-password}}
