@@ -1,0 +1,23 @@
+---
+jobs:
+- name: build
+  public: true
+  plan:
+  - get: packer-resource
+    trigger: true
+  - put: packer-resource-image
+    params: {build: packer-resource}
+
+resources:
+- name: packer-resource
+  type: git
+  source:
+    uri: {{git-uri}}
+    branch: {{git-branch}}
+
+- name: packer-resource-image
+  type: docker-image
+  source:
+    repository: {{docker-repository}}
+    username: {{docker-username}}
+    password: {{docker-password}}
